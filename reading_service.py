@@ -40,8 +40,7 @@ class DistributedReadingService(ReadingServiceInterface):
             self._rank,
         )
         self._datapipe = datapipe
-        return datapipe
-        #  return FullSyncIterDataPipe(datapipe)
+        return FullSyncIterDataPipe(datapipe)
 
     def _share_seed(self):
         _sd = torch.empty((), dtype=torch.int64).random_().item()

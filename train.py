@@ -12,7 +12,7 @@ def main():
     #  ws = dist.get_world_size()
     rank = dist.get_rank()
 
-    dp = IterableWrapper(list(range(10))).shuffle().sharding_filter()
+    dp = IterableWrapper(list(range(9))).shuffle().sharding_filter()
 
     rs = DistributedReadingService()
 
@@ -22,6 +22,7 @@ def main():
         print(f"Rank: {rank}, Epoch: {epoch+1}")
         for idx, d in enumerate(dl):
             print(f"Rank: {rank}, ID: {idx}, Data: {d}")
+            dist.barrier()
 
 
 if __name__ == "__main__":
