@@ -12,16 +12,16 @@ def main():
     #  ws = dist.get_world_size()
     rank = dist.get_rank()
 
-    dp = IterableWrapper(list(range(100))).shuffle().sharding_filter()
+    dp = IterableWrapper(list(range(10))).shuffle().sharding_filter()
 
     rs = DistributedReadingService()
 
-    dl = DataLoader2(dp, rs)
+    dl = DataLoader2(dp, reading_service=rs)
 
     for epoch in range(2):
         print(f"Rank: {rank}, Epoch: {epoch+1}")
         for idx, d in enumerate(dl):
-            print(f"Rank: {rank}, ID: {idx}, Data: {d.item()}")
+            print(f"Rank: {rank}, ID: {idx}, Data: {d}")
 
 
 if __name__ == "__main__":
