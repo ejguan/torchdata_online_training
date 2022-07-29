@@ -1,18 +1,25 @@
+import os
+import socket
 import time
 import torch
 import torch.distributed as dist
 
 from datetime import timedelta
-from torch.utils.data.graph import DataPipe
-from torchdata.dataloader2 import ReadingServiceInterface
 
-from datapipe import FullSyncIterDataPipe
+from torch.utils.data.graph import DataPipe, traverse
+from torchdata.dataloader2 import ReadingServiceInterface
+from torchdata.dataloader2.graph import find_dps
+
+from datapipe import FullSyncIterDataPipe, OnlineReceiverIterDataPipe
 
 
 SHARED_SEED = "_dl_shared_seed"
 SHARED_SEED_COUNTER = "_dl_shared_seed_recv_cnt"
 SHARED_SEED_CHECK_INTERVAL = 0.01
 SHARED_SEED_DEFAULT_TIMEOUT = 30 * 60
+
+
+__all__ = ["DistributedReadingService", "OnlineReadingService"]
 
 
 class DistributedReadingService(ReadingServiceInterface):
@@ -87,3 +94,36 @@ class DistributedReadingService(ReadingServiceInterface):
             _sd = int(_sd_str)
 
         return _sd
+
+
+class OnlineReadingService(ReadingServiceInterface):
+    def __init__(self, host, port, rs=None):
+        self._local_rank = int(os.environ.get("LOCAL_RANK", 0))
+        # TODO: port should be automatically assigned by OS on localhost
+        self._host = host
+        self._port = port
+        if rs is not None:
+            assert isinstance(rs, DistributedReadingService)
+        self._rs = rs
+
+    def initialize(self, datapipe: DataPipe) -> DataPipe:
+        graph = traverse(datapipe, only_datapipe=True)
+        dps = find_dps(graph, OnlineReceiverIterDataPipe)
+        # TODO: Figure out protocol to support multiple receiver
+        assert len(dps) == 1
+        for dp in dps:
+            dp.set_connection_config(self._host, self._port, self._local_rank)
+        if self._rs is not None:
+            datapipe = self._rs.initialize(datapipe)
+        return datapipe
+
+    def initialize_iteration(self) -> None:
+        r"""
+        Start Server Process
+        """
+        if self._rs is not None:
+            self._rs.initialize_iteration()
+
+    @staticmethod
+    def server_fn(host, port):
+        pass
